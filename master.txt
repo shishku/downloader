@@ -1,2 +1,1 @@
-urls:
-test
+https://mediafilez.forgecdn.net/files/8047/859/RaiderIO-v202605061225.zip
