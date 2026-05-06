@@ -1,4 +1,4 @@
-name: Download file from URL
+name: Download files from list
 
 on:
   workflow_dispatch:
@@ -17,71 +17,75 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install file tools
+      - name: Download all files from master.txt
         run: |
-          sudo apt-get update
-          sudo apt-get install -y file
-
-      - name: Read URL and download file
-        run: |
-          URL="$(cat master.txt | tr -d '[:space:]')"
-
           mkdir -p downloads
+          rm -f downloads/*
 
-          curl -L \
-            --fail \
-            --retry 3 \
-            --output downloads/raw-download \
-            "$URL"
+          count=1
 
-      - name: Detect file type and rename
-        run: |
-          MIME="$(file --mime-type -b downloads/raw-download)"
-          echo "Detected MIME type: $MIME"
+          while IFS= read -r URL || [ -n "$URL" ]; do
+            # Skip empty lines
+            [ -z "$URL" ] && continue
 
-          case "$MIME" in
-            video/mp4)
-              EXT="mp4"
-              ;;
-            video/webm)
-              EXT="webm"
-              ;;
-            audio/mpeg)
-              EXT="mp3"
-              ;;
-            audio/mp4)
-              EXT="m4a"
-              ;;
-            audio/webm)
-              EXT="webm"
-              ;;
-            application/zip)
-              EXT="zip"
-              ;;
-            application/pdf)
-              EXT="pdf"
-              ;;
-            image/jpeg)
-              EXT="jpg"
-              ;;
-            image/png)
-              EXT="png"
-              ;;
-            text/plain)
-              EXT="txt"
-              ;;
-            application/json)
-              EXT="json"
-              ;;
-            *)
-              EXT="bin"
-              ;;
-          esac
+            echo "Downloading: $URL"
 
-          mv downloads/raw-download "downloads/downloaded-file.$EXT"
-          echo "Saved as downloads/downloaded-file.$EXT"
+            TEMP_FILE="downloads/raw-$count"
 
-      - name: Commit downloaded file
+            curl -L \
+              --fail \
+              --retry 3 \
+              --output "$TEMP_FILE" \
+              "$URL"
+
+            MIME="$(file --mime-type -b "$TEMP_FILE")"
+            echo "Detected MIME: $MIME"
+
+            case "$MIME" in
+              video/mp4)
+                EXT="mp4"
+                ;;
+              video/webm)
+                EXT="webm"
+                ;;
+              audio/mpeg)
+                EXT="mp3"
+                ;;
+              audio/mp4)
+                EXT="m4a"
+                ;;
+              audio/webm)
+                EXT="webm"
+                ;;
+              application/zip)
+                EXT="zip"
+                ;;
+              application/pdf)
+                EXT="pdf"
+                ;;
+              image/jpeg)
+                EXT="jpg"
+                ;;
+              image/png)
+                EXT="png"
+                ;;
+              text/plain)
+                EXT="txt"
+                ;;
+              application/json)
+                EXT="json"
+                ;;
+              *)
+                EXT="bin"
+                ;;
+            esac
+
+            mv "$TEMP_FILE" "downloads/file-$count.$EXT"
+
+            count=$((count + 1))
+          done < master.txt
+
+      - name: Commit downloaded files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -91,6 +95,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Download file from URL"
+            git commit -m "Download files from master list"
             git push
           fi
