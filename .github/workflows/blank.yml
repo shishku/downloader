@@ -1,0 +1,43 @@
+name: Download file from URL
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "master.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Read URL from file
+        id: read_url
+        run: |
+          URL="$(cat master.txt | tr -d '[:space:]')"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Download file
+        run: |
+          mkdir -p downloads
+          curl -L "${{ steps.read_url.outputs.url }}" -o downloads/downloaded-file
+
+      - name: Commit downloaded file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add downloads/downloaded-file
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Download file from URL"
+            git push
+          fi
