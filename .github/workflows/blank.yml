@@ -20,13 +20,12 @@ jobs:
       - name: Download all files from master.txt
         run: |
           mkdir -p downloads
-          rm -f downloads/*
+          rm -rf downloads/*
 
           MAX_SIZE=$((50 * 1024 * 1024))
           count=1
 
           while IFS= read -r URL || [ -n "$URL" ]; do
-            # Skip empty lines
             [ -z "$URL" ] && continue
 
             echo "Downloading: $URL"
@@ -43,42 +42,18 @@ jobs:
             echo "Detected MIME: $MIME"
 
             case "$MIME" in
-              video/mp4)
-                EXT="mp4"
-                ;;
-              video/webm)
-                EXT="webm"
-                ;;
-              audio/mpeg)
-                EXT="mp3"
-                ;;
-              audio/mp4)
-                EXT="m4a"
-                ;;
-              audio/webm)
-                EXT="webm"
-                ;;
-              application/zip)
-                EXT="zip"
-                ;;
-              application/pdf)
-                EXT="pdf"
-                ;;
-              image/jpeg)
-                EXT="jpg"
-                ;;
-              image/png)
-                EXT="png"
-                ;;
-              text/plain)
-                EXT="txt"
-                ;;
-              application/json)
-                EXT="json"
-                ;;
-              *)
-                EXT="bin"
-                ;;
+              video/mp4) EXT="mp4" ;;
+              video/webm) EXT="webm" ;;
+              audio/mpeg) EXT="mp3" ;;
+              audio/mp4) EXT="m4a" ;;
+              audio/webm) EXT="webm" ;;
+              application/zip) EXT="zip" ;;
+              application/pdf) EXT="pdf" ;;
+              image/jpeg) EXT="jpg" ;;
+              image/png) EXT="png" ;;
+              text/plain) EXT="txt" ;;
+              application/json) EXT="json" ;;
+              *) EXT="bin" ;;
             esac
 
             FINAL_FILE="downloads/file-$count.$EXT"
@@ -87,21 +62,16 @@ jobs:
             echo "File size: $FILE_SIZE bytes"
 
             if [ "$FILE_SIZE" -gt "$MAX_SIZE" ]; then
-              echo "File is bigger than 50 MB. Splitting into 50 MB parts..."
+              echo "File is bigger than 50 MB. Splitting into folder..."
 
-              PART_DIR="downloads/file-$count-parts"
+              PART_DIR="downloads/file-$count-$EXT-parts"
               mkdir -p "$PART_DIR"
 
               split -b 50M -d -a 3 "$TEMP_FILE" "$PART_DIR/file-$count.$EXT.part-"
 
-              ZIP_FILE="downloads/file-$count.$EXT.parts.zip"
-
-              zip -j "$ZIP_FILE" "$PART_DIR"/*
-
               rm -f "$TEMP_FILE"
-              rm -rf "$PART_DIR"
 
-              echo "Created split zip: $ZIP_FILE"
+              echo "Created parts in: $PART_DIR"
             else
               mv "$TEMP_FILE" "$FINAL_FILE"
               echo "Saved file: $FINAL_FILE"
