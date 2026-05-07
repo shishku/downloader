@@ -1,1 +1,1 @@
-https://updates.torguard.biz/Software/Windows/torguard-setup-latest.exe
+https://github.com/2dust/v2rayN/releases/download/7.20.4/v2rayN-windows-64.zip
