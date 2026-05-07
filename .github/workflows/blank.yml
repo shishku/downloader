@@ -22,6 +22,7 @@ jobs:
           mkdir -p downloads
           rm -f downloads/*
 
+          MAX_SIZE=$((50 * 1024 * 1024))
           count=1
 
           while IFS= read -r URL || [ -n "$URL" ]; do
@@ -80,7 +81,31 @@ jobs:
                 ;;
             esac
 
-            mv "$TEMP_FILE" "downloads/file-$count.$EXT"
+            FINAL_FILE="downloads/file-$count.$EXT"
+            FILE_SIZE="$(stat -c%s "$TEMP_FILE")"
+
+            echo "File size: $FILE_SIZE bytes"
+
+            if [ "$FILE_SIZE" -gt "$MAX_SIZE" ]; then
+              echo "File is bigger than 50 MB. Splitting into 50 MB parts..."
+
+              PART_DIR="downloads/file-$count-parts"
+              mkdir -p "$PART_DIR"
+
+              split -b 50M -d -a 3 "$TEMP_FILE" "$PART_DIR/file-$count.$EXT.part-"
+
+              ZIP_FILE="downloads/file-$count.$EXT.parts.zip"
+
+              zip -j "$ZIP_FILE" "$PART_DIR"/*
+
+              rm -f "$TEMP_FILE"
+              rm -rf "$PART_DIR"
+
+              echo "Created split zip: $ZIP_FILE"
+            else
+              mv "$TEMP_FILE" "$FINAL_FILE"
+              echo "Saved file: $FINAL_FILE"
+            fi
 
             count=$((count + 1))
           done < master.txt
