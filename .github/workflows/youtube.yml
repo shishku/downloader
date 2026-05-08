@@ -1,0 +1,65 @@
+name: Download YouTube URLs
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "youtube-urls.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  download-youtube:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install yt-dlp
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --upgrade yt-dlp
+
+      - name: Download videos from youtube-urls.txt
+        run: |
+          mkdir -p downloaded-youtube
+          rm -rf downloaded-youtube/*
+
+          count=1
+
+          while IFS= read -r URL || [ -n "$URL" ]; do
+            # Skip empty lines
+            [ -z "$URL" ] && continue
+
+            # Skip comments
+            case "$URL" in
+              \#*) continue ;;
+            esac
+
+            echo "Downloading: $URL"
+
+            yt-dlp \
+              --no-playlist \
+              --merge-output-format mp4 \
+              -f "bv*+ba/best" \
+              -o "downloaded-youtube/video-$count.%(ext)s" \
+              "$URL"
+
+            count=$((count + 1))
+          done < youtube-urls.txt
+
+      - name: Commit downloaded YouTube files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add downloaded-youtube/
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Download YouTube videos"
+            git push
+          fi
