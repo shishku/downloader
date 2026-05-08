@@ -2,7 +2,9 @@ name: Download YouTube URLs
 
 on:
   workflow_dispatch:
-  push:
+  pull_request:
+    types:
+      - closed
     paths:
       - "youtube-urls.txt"
 
@@ -11,11 +13,14 @@ permissions:
 
 jobs:
   download-youtube:
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref || github.ref_name }}
 
       - name: Install dependencies
         run: |
