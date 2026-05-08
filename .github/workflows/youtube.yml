@@ -76,7 +76,7 @@ jobs:
             exit 0
           fi
 
-          MAX_SIZE=$((50 * 1024 * 1024))
+          MAX_SIZE=$((80 * 1024 * 1024))
           count=1
 
           while IFS= read -r URL || [ -n "$URL" ]; do
@@ -115,12 +115,13 @@ jobs:
             echo "File size: $FILE_SIZE bytes"
 
             if [ "$FILE_SIZE" -gt "$MAX_SIZE" ]; then
-              echo "File is bigger than 50 MB. Splitting into folder..."
+              echo "File is bigger than 80 MB. Splitting into folder..."
 
               PART_DIR="downloaded-youtube/video-$count-$EXT-parts"
               mkdir -p "$PART_DIR"
 
-              split -b 50M -d -a 3 "$VIDEO_FILE" "$PART_DIR/video-$count.$EXT.part-"
+              split -b 80M -d -a 3 --numeric-suffixes=1 \
+                "$VIDEO_FILE" "$PART_DIR/video-$count.$EXT."
 
               echo "Created parts in: $PART_DIR"
             else
@@ -132,7 +133,6 @@ jobs:
 
             count=$((count + 1))
           done < youtube-urls.txt
-
       - name: Clear youtube-urls.txt
         if: success()
         run: |
