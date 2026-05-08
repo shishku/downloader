@@ -14,7 +14,7 @@ permissions:
 jobs:
   download-youtube:
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repo for manual run
@@ -31,11 +31,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt update
-          sudo apt install -y ffmpeg unzip nodejs npm
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg unzip nodejs npm
 
-          python3 -m pip install --upgrade pip
-          python3 -m pip install --upgrade --pre "yt-dlp[default]"
+          python3 -m pip install --upgrade pip -q
+          python3 -m pip install --upgrade --pre "yt-dlp[default]" -q
 
           node --version
           yt-dlp --version
@@ -76,6 +76,7 @@ jobs:
             exit 0
           fi
 
+          MAX_SIZE=$((50 * 1024 * 1024))
           count=1
 
           while IFS= read -r URL || [ -n "$URL" ]; do
@@ -87,6 +88,9 @@ jobs:
 
             echo "Downloading: $URL"
 
+            TEMP_DIR="downloaded-youtube/temp-$count"
+            mkdir -p "$TEMP_DIR"
+
             yt-dlp \
               --cookies cookies.txt \
               --remote-components ejs:github \
@@ -94,8 +98,37 @@ jobs:
               --no-playlist \
               --merge-output-format mp4 \
               -f "bv*+ba/b/best" \
-              -o "downloaded-youtube/video-$count.%(ext)s" \
+              -o "$TEMP_DIR/video-$count.%(ext)s" \
               "$URL"
+
+            VIDEO_FILE="$(find "$TEMP_DIR" -maxdepth 1 -type f | head -n 1)"
+
+            if [ -z "$VIDEO_FILE" ]; then
+              echo "No video file downloaded for: $URL"
+              exit 1
+            fi
+
+            FILE_SIZE="$(stat -c%s "$VIDEO_FILE")"
+            EXT="${VIDEO_FILE##*.}"
+
+            echo "Downloaded file: $VIDEO_FILE"
+            echo "File size: $FILE_SIZE bytes"
+
+            if [ "$FILE_SIZE" -gt "$MAX_SIZE" ]; then
+              echo "File is bigger than 50 MB. Splitting into folder..."
+
+              PART_DIR="downloaded-youtube/video-$count-$EXT-parts"
+              mkdir -p "$PART_DIR"
+
+              split -b 50M -d -a 3 "$VIDEO_FILE" "$PART_DIR/video-$count.$EXT.part-"
+
+              echo "Created parts in: $PART_DIR"
+            else
+              mv "$VIDEO_FILE" "downloaded-youtube/video-$count.$EXT"
+              echo "Saved file: downloaded-youtube/video-$count.$EXT"
+            fi
+
+            rm -rf "$TEMP_DIR"
 
             count=$((count + 1))
           done < youtube-urls.txt
