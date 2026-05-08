@@ -17,10 +17,37 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install yt-dlp
+      - name: Install dependencies
         run: |
+          sudo apt update
+          sudo apt install -y ffmpeg unzip nodejs
           python3 -m pip install --upgrade pip
           python3 -m pip install --upgrade yt-dlp
+
+      - name: Create cookies file
+        env:
+          YOUTUBE_COOKIES_ZIP_B64: ${{ secrets.YOUTUBE_COOKIES_ZIP_B64 }}
+        run: |
+          if [ -n "$YOUTUBE_COOKIES_ZIP_B64" ]; then
+            echo "$YOUTUBE_COOKIES_ZIP_B64" | base64 -d > youtube-cookies.zip
+            unzip -o youtube-cookies.zip
+
+            if [ -f youtube-cookies-min.txt ]; then
+              mv youtube-cookies-min.txt cookies.txt
+            elif [ -f youtube-cookies.txt ]; then
+              mv youtube-cookies.txt cookies.txt
+            elif [ -f cookies.txt ]; then
+              echo "cookies.txt found"
+            else
+              echo "No cookie file found inside zip"
+              exit 1
+            fi
+
+            chmod 600 cookies.txt
+            echo "Cookies file created"
+          else
+            echo "No cookie secret found. yt-dlp will run without cookies."
+          fi
 
       - name: Download videos from youtube-urls.txt
         run: |
@@ -38,7 +65,14 @@ jobs:
 
             echo "Downloading: $URL"
 
+            COOKIE_ARGS=""
+            if [ -f cookies.txt ]; then
+              COOKIE_ARGS="--cookies cookies.txt"
+            fi
+
             yt-dlp \
+              $COOKIE_ARGS \
+              --js-runtimes node \
               --no-playlist \
               --merge-output-format mp4 \
               -f "bv*+ba/best" \
@@ -49,10 +83,12 @@ jobs:
           done < youtube-urls.txt
 
       - name: Clear youtube-urls.txt
+        if: success()
         run: |
           : > youtube-urls.txt
 
       - name: Commit downloaded YouTube files and clear list
+        if: success()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
