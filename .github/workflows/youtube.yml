@@ -133,10 +133,6 @@ jobs:
 
             count=$((count + 1))
           done < youtube-urls.txt
-      - name: Clear youtube-urls.txt
-        if: success()
-        run: |
-          : > youtube-urls.txt
 
       - name: Commit downloaded YouTube files and clear list
         if: success()
@@ -144,11 +140,30 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add downloaded-youtube/ youtube-urls.txt
+          git config http.version HTTP/1.1
+          git config http.postBuffer 524288000
+
+          if [ -d downloaded-youtube ]; then
+            for ITEM in downloaded-youtube/*; do
+              [ -e "$ITEM" ] || continue
+
+              git add "$ITEM"
+
+              if git diff --cached --quiet; then
+                echo "No changes for $ITEM"
+              else
+                git commit -m "Add $(basename "$ITEM")"
+                git push
+              fi
+            done
+          fi
+
+          : > youtube-urls.txt
+          git add youtube-urls.txt
 
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "No URL list changes to commit"
           else
-            git commit -m "Download YouTube videos and clear URL list"
+            git commit -m "Clear YouTube URL list"
             git push
           fi
