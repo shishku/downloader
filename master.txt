@@ -1,1 +1,1 @@
-https://download.overwolf.com/install/Download?ExtensionId=cfiahnpaolfnlgaihhmobmnjdafknjnjdpdabpcm&utm_term=eyJkb21haW4iOiJjZi13ZWIifQ%3D%3D
+https://wiresock.net/_api/download-release.php?product=wiresock-secure-connect&platform=windows_x64&version=3.4.6.1
